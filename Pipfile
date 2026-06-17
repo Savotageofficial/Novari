@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+google-cloud-firestore = "*"
+firebase-admin = "*"
+pillow = "*"
+psycopg2-binary = "*"
+djangorestframework = "*"
+djangorestframework-stubs = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
+python_full_version = "3.12.10"
