@@ -11,6 +11,8 @@ pillow = "*"
 psycopg2-binary = "*"
 djangorestframework = "*"
 djangorestframework-stubs = "*"
+gunicorn = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 
