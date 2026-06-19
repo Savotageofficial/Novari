@@ -43,6 +43,7 @@ INSTALLED_APPS = [
 ]
 CORS_ALLOWED_ORIGINS = [
     "https://novari-front.vercel.app",
+    "https://www.novari-front.vercel.app",
 ]
 
 REST_FRAMEWORK = {
