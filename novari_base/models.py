@@ -2,15 +2,9 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 
-# Create your models here.
-
 
 class User(models.Model):
-    """Application admin user (not Django admin).
-
-    This user type manages products (add/remove) and has elevated privileges,
-    but is separate from Django's built-in auth user.
-    """
+    """Application admin user (not Django admin)."""
     ROLE_ADMIN = 'admin'
     ROLE_MANAGER = 'manager'
     ROLE_CHOICES = [
@@ -58,13 +52,31 @@ class AdminToken(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(default='')
-    image = models.ImageField(upload_to='products' , default='not uploaded')
+    image = models.ImageField(upload_to='products', default='not uploaded')
     discount = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
-        default=0.0
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        default=0.0,
     )
     price = models.FloatField()
-    color = models.CharField(max_length=100 , default='white')
+    color = models.CharField(max_length=100, default='white')
+    category = models.CharField(max_length=100, default='Uncategorized')
+    colors = models.JSONField(default=list, blank=True)
+    images = models.JSONField(default=list, blank=True)
+    in_stock = models.BooleanField(default=True)
+    stock_count = models.PositiveIntegerField(default=0)
+    sales = models.PositiveIntegerField(default=0)
+
+    def get_colors_list(self):
+        if self.colors:
+            return self.colors
+        return [self.color] if self.color else []
+
+    def get_images_list(self):
+        if self.images:
+            return self.images
+        if self.image and str(self.image) != 'not uploaded':
+            return [self.image.url if hasattr(self.image, 'url') else str(self.image)]
+        return []
 
 
 class Order(models.Model):
@@ -74,9 +86,10 @@ class Order(models.Model):
     LastName = models.CharField(max_length=100)
     Address = models.TextField(default='')
     city = models.CharField(max_length=100)
-    country = models.CharField(max_length=100)
     payment_method = models.CharField(max_length=100)
     created_at = models.DateTimeField(auto_now_add=True)
     Order_Notes = models.TextField(default='')
+    items = models.JSONField(default=list, blank=True)
+
     class Meta:
         db_table = 'Orders'

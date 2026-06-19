@@ -2,41 +2,49 @@ from django.http import HttpResponse
 from django.db.models import Q, Max
 from datetime import datetime
 import secrets
+import uuid
+from datetime import timedelta
 
-from novari_base.models import Product, AdminToken, User, Order
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.core.files.storage import default_storage
+from django.db.models import Max, Q
+from django.utils import timezone
 from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from novari_base.models import AdminToken, Order, Product, User
+from novari_base.serializers import product_from_request_data, serialize_order, serialize_product
+
+ALLOWED_IMAGE_TYPES = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+}
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024
+TOKEN_MAX_AGE = timedelta(days=30)
 
 
-# --- Helper Functions ---
-
-def createproduct(name, description, price, color="white"):
-    new_product = Product(name=name, description=description, price=price, color=color)
-    new_product.save()
-    return {
-        'product_id': new_product.id,
-        'name': new_product.name,
-        'description': description,
-        'price': price,
-        'color': color
-    }
+def _extract_token(auth_header: str | None) -> str | None:
+    if not auth_header:
+        return None
+    if auth_header.startswith('Bearer '):
+        return auth_header[7:].strip()
+    return auth_header.strip()
 
 
 def check_token(request):
-    auth_header = request.headers.get('Authorization')
-    if not auth_header:
+    token_value = _extract_token(request.headers.get('Authorization'))
+    if not token_value:
         return None
     try:
-        token = AdminToken.objects.get(token=auth_header)
-        user = User.objects.get(id=token.user_id)
-        return user
+        token = AdminToken.objects.get(token=token_value)
+        if token.created_at < timezone.now() - TOKEN_MAX_AGE:
+            token.delete()
+            return None
+        return User.objects.get(id=token.user_id)
     except (AdminToken.DoesNotExist, User.DoesNotExist):
         return None
 
-
-# --- Public Endpoints ---
 
 class ProductListView(APIView):
     def get(self, request):
@@ -46,24 +54,25 @@ class ProductListView(APIView):
         max_available_price = Product.objects.aggregate(Max('price'))['price__max'] or 0
         max_price = request.GET.get('max_price', max_available_price)
 
-        results = Product.objects.filter(
-            Q(color__contains=color) &
+        queryset = Product.objects.filter(
             Q(price__gte=min_price) &
             Q(price__lte=max_price)
-        ).values('id', 'name', 'price', 'description', 'discount', 'color', 'image')
+        )
+        if color:
+            queryset = queryset.filter(
+                Q(color__icontains=color) | Q(colors__icontains=color)
+            )
 
-        return Response(list(results))
+        return Response([serialize_product(p, request) for p in queryset])
 
 
 class ProductDetailView(APIView):
     def get(self, request, id):
         try:
-            product = Product.objects.filter(id=id).values(
-                'id', 'name', 'price', 'description', 'discount', 'color', 'image'
-            ).first()
-            if product is None:
-                return Response({'error': 'Product does not exist'}, status=status.HTTP_404_NOT_FOUND)
-            return Response(product)
+            product = Product.objects.get(id=id)
+            return Response(serialize_product(product, request))
+        except Product.DoesNotExist:
+            return Response({'error': 'Product does not exist'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -85,7 +94,10 @@ class AdminLoginView(APIView):
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not user.is_admin:
-            return Response({'error': 'Invalid credentials or insufficient privileges'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {'error': 'Invalid credentials or insufficient privileges'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
         token_value = secrets.token_urlsafe(32)
         admin_token = AdminToken.objects.create(user=user, token=token_value)
@@ -97,11 +109,22 @@ class AdminLoginView(APIView):
                 'name': user.name,
                 'email': user.email,
                 'role': user.role,
-            }
+            },
         })
 
 
-# --- Admin Endpoints ---
+class AdminLogoutView(APIView):
+    def post(self, request):
+        token_value = _extract_token(request.headers.get('Authorization'))
+        if not token_value:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        deleted, _ = AdminToken.objects.filter(token=token_value).delete()
+        if deleted == 0:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response({'success': 'Logged out'})
+
 
 class AdminProductsView(APIView):
     def get(self, request):
@@ -109,8 +132,7 @@ class AdminProductsView(APIView):
         if user is None:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        results = Product.objects.all().values('id', 'name', 'price', 'description', 'discount', 'color', 'image')
-        return Response(list(results))
+        return Response([serialize_product(p, request) for p in Product.objects.all()])
 
     def post(self, request):
         user = check_token(request)
@@ -118,12 +140,9 @@ class AdminProductsView(APIView):
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
-            name = request.data.get('name')
-            price = request.data.get('price')
-            description = request.data.get('description')
-            color = request.data.get('color', 'white')
-            product_data = createproduct(name, description, price, color)
-            return Response(product_data, status=status.HTTP_201_CREATED)
+            product = product_from_request_data(request.data)
+            product.save()
+            return Response(serialize_product(product, request), status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': f'Invalid, {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -139,32 +158,13 @@ class AdminProductDeleteView(APIView):
         except Product.DoesNotExist:
             return Response({'error': f'Product {id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Only update fields that were actually sent
-        if 'name' in request.data:
-            product.name = request.data.get('name')
-        if 'description' in request.data:
-            product.description = request.data.get('description')
-        if 'price' in request.data:
-            product.price = request.data.get('price')
-        if 'color' in request.data:
-            product.color = request.data.get('color')
-        if 'discount' in request.data:
-            product.discount = request.data.get('discount')
-
+        product = product_from_request_data(request.data, product)
         product.save()
 
         return Response({
             'success': f'Product {id} updated',
-            'product': {
-                'id': product.id,
-                'name': product.name,
-                'description': product.description,
-                'price': product.price,
-                'color': product.color,
-                'discount': product.discount,
-            }
+            'product': serialize_product(product, request),
         })
-
 
     def delete(self, request, id):
         user = check_token(request)
@@ -179,9 +179,47 @@ class AdminProductDeleteView(APIView):
             return Response({'error': f'Product {id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
 
+class AdminImageUploadView(APIView):
+    def post(self, request):
+        user = check_token(request)
+        if user is None:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        image_file = request.FILES.get('image')
+        if not image_file:
+            return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        content_type = image_file.content_type
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            return Response({'error': 'Invalid image type'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if image_file.size > MAX_UPLOAD_SIZE:
+            return Response({'error': 'Image too large'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ext = ALLOWED_IMAGE_TYPES[content_type]
+        filename = f'products/{uuid.uuid4()}{ext}'
+        saved_path = default_storage.save(filename, image_file)
+        url = request.build_absolute_uri(default_storage.url(saved_path))
+        return Response({'url': url}, status=status.HTTP_201_CREATED)
+
+
+class AdminOrdersView(APIView):
+    def get(self, request):
+        user = check_token(request)
+        if user is None:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        orders = Order.objects.order_by('-created_at')
+        return Response([serialize_order(order) for order in orders])
+
+
 class SubmitOrderView(APIView):
     def post(self, request):
         try:
+            items = request.data.get('items', [])
+            if not isinstance(items, list):
+                items = []
+
             new_order = Order(
                 Email=request.data.get('email'),
                 Phone=request.data.get('phone'),
@@ -189,10 +227,9 @@ class SubmitOrderView(APIView):
                 LastName=request.data.get('lastname'),
                 Address=request.data.get('address'),
                 city=request.data.get('city'),
-                country=request.data.get('country'),
                 payment_method=request.data.get('payment_method'),
-                created_at=datetime.now(),
                 Order_Notes=request.data.get('Order_Notes', ''),
+                items=items,
             )
             new_order.save()
             return Response({'success': f'Order submitted at id {new_order.id}'})
