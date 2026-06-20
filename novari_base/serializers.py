@@ -83,7 +83,13 @@ def product_from_request_data(data: dict, product: Product | None = None) -> Pro
         product.colors = [data['color']] if data['color'] else []
 
     # Images are managed through ImagesTable, not this endpoint
-    product.images = []
+    if 'images' in data and isinstance(data['images'], list):
+        product.images = data['images']
+        if data['images']:
+            product.images = data['images'][0]
+    elif 'images' in data:
+        product.images = data['images']
+        product.images = [data['images']] if data['images'] else []
 
     return product
 
