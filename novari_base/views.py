@@ -213,6 +213,39 @@ class AdminOrdersView(APIView):
         return Response([serialize_order(order) for order in orders])
 
 
+class AdminAddAdminView(APIView):
+    def post(self, request):
+        user = check_token(request)
+        if user is None or not user.is_admin:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        email = request.data.get('email')
+        name = request.data.get('name')
+        password = request.data.get('password')
+        role = request.data.get('role', User.ROLE_ADMIN)
+
+        if not email or not name or not password:
+            return Response({'error': 'Email, name and password are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=email).exists():
+            return Response({'error': 'Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        new_user = User.objects.create(
+            email=email,
+            name=name,
+            role=role if role in [User.ROLE_ADMIN, User.ROLE_MANAGER] else User.ROLE_ADMIN,
+        )
+        new_user.set_password(password)
+        new_user.save()
+
+        return Response({
+            'id': new_user.id,
+            'email': new_user.email,
+            'name': new_user.name,
+            'role': new_user.role,
+        }, status=status.HTTP_201_CREATED)
+
+
 class SubmitOrderView(APIView):
     def post(self, request):
         try:
