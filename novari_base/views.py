@@ -279,6 +279,13 @@ class SubmitOrderView(APIView):
                 items=items,
             )
             new_order.save()
+
+            product_ids = [item["product_id"] for item in items]
+            for id in product_ids:
+                product = Product.objects.get(id=id)
+                product.stock_count = product.stock_count - 1
+                product.save()
+
             return Response({'success': f'Order submitted at id {new_order.id}'})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
