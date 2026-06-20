@@ -60,10 +60,6 @@ def product_from_request_data(data: dict, product: Product | None = None) -> Pro
         product.color = data['color']
         product.colors = [data['color']] if data['color'] else []
 
-    if 'images' in data and isinstance(data['images'], list):
-        product.images = data['images']
-    elif 'image' in data:
-        product.images = [data['image']] if data['image'] else []
 
     return product
 
