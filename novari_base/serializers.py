@@ -9,10 +9,17 @@ def _absolute_media_url(path: str, request=None) -> str:
 
 def serialize_product(product: Product, request=None) -> dict:
     image_rows = ImagesTable.objects.filter(image=product).exclude(mainimage='')
-    if image_rows.exists():
-        images = [_absolute_media_url(img.mainimage.url, request) for img in image_rows]
-    else:
+    images = []
+    for img in image_rows:
+        if img.mainimage:
+            images.append(_absolute_media_url(img.mainimage.url, request))
+
+    if not images:
         images = [_absolute_media_url(img, request) for img in product.get_images_list()]
+
+    if not images:
+        images = []
+
     return {
         'id': product.id,
         'name': product.name,
