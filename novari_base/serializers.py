@@ -8,14 +8,22 @@ def _absolute_media_url(path: str, request=None) -> str:
 
 
 def serialize_product(product: Product, request=None) -> dict:
-    image_rows = ImagesTable.objects.filter(image=product).exclude(mainimage='')
     images = []
-    for img in image_rows:
-        if img.mainimage:
-            images.append(_absolute_media_url(img.mainimage.url, request))
 
+    # 1. Try treating product.images as a list of ImagesTable IDs
+    image_ids = product.get_images_list()
+    if isinstance(image_ids, list) and image_ids:
+        rows = ImagesTable.objects.filter(id__in=image_ids).exclude(mainimage='')
+        for img in rows:
+            if img.mainimage:
+                images.append(_absolute_media_url(img.mainimage.url, request))
+
+    # 2. Fallback: search ImagesTable rows by foreign key
     if not images:
-        images = [_absolute_media_url(img, request) for img in product.get_images_list()]
+        rows = ImagesTable.objects.filter(image=product).exclude(mainimage='')
+        for img in rows:
+            if img.mainimage:
+                images.append(_absolute_media_url(img.mainimage.url, request))
 
     if not images:
         images = []
@@ -67,7 +75,8 @@ def product_from_request_data(data: dict, product: Product | None = None) -> Pro
         product.color = data['color']
         product.colors = [data['color']] if data['color'] else []
 
-    product.image = []
+    # Images are managed through ImagesTable, not this endpoint
+    product.images = []
 
     return product
 

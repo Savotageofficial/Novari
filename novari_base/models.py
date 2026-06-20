@@ -71,11 +71,7 @@ class Product(models.Model):
         return [self.color] if self.color else []
 
     def get_images_list(self):
-        if self.images:
-            return self.images
-        if self.image and str(self.image) != 'not uploaded':
-            return [self.image.url if hasattr(self.image, 'url') else str(self.image)]
-        return []
+        return self.images if self.images else []
 
 class ImagesTable(models.Model):
     mainimage = models.ImageField(upload_to='img', null=True)

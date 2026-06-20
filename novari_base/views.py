@@ -209,7 +209,12 @@ class AdminImageUploadView(APIView):
         image.save()
         url = request.build_absolute_uri(image.mainimage.url)
 
-        return Response({'url': url}, status=status.HTTP_201_CREATED)
+        product.images = product.images or []
+        if image.id not in product.images:
+            product.images.append(image.id)
+            product.save(update_fields=['images'])
+
+        return Response({'url': url, 'id': image.id}, status=status.HTTP_201_CREATED)
 
 
 class AdminOrdersView(APIView):
