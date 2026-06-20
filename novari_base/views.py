@@ -211,6 +211,7 @@ class AdminImageUploadView(APIView):
 
         image_array = product.images
         image_array.append(image.id)
+        product.images = image_array
         product.save(update_fields=['images'])
 
         return Response({'url': url, 'id': image.id}, status=status.HTTP_201_CREATED)
