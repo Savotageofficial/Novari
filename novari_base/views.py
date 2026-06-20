@@ -288,6 +288,7 @@ class SubmitOrderView(APIView):
                 payment_method=request.data.get('payment_method'),
                 Order_Notes=request.data.get('Order_Notes', ''),
                 items=items,
+                status="IN_PROGRESS"
             )
             new_order.save()
 
