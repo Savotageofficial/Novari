@@ -32,7 +32,7 @@ def serialize_product(product: Product, request=None) -> dict:
     image_ids = product.get_images_list()
     for i in image_ids:
         image = ImagesTable.objects.get(id=i)
-        image_urls.append(image.mainimage)
+        image_urls.append(image.mainimage.url)
 
 
     return {
