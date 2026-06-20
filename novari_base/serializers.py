@@ -43,7 +43,7 @@ def serialize_product(product: Product, request=None) -> dict:
         'discount': product.discount,
         'category': product.category,
         'colors': product.get_colors_list(),
-        'images': images,
+        'images': image_urls,
         'in_stock': product.in_stock,
         'stock_count': product.stock_count,
         'sales': product.sales,
