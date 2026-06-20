@@ -117,4 +117,5 @@ def serialize_order(order: Order) -> dict:
         'items': line_items,
         'total': total,
         'item_count': item_count,
+        'status': order.status,
     }
