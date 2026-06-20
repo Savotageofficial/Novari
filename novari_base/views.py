@@ -235,6 +235,7 @@ class ChangeOrderStatusView(APIView):
             order = Order.objects.get(id=id)
             order.status = request.data.get('status')
             order.save();
+            return Response({'success': f'Order {id} updated'}, status=status.HTTP_200_OK)
         except (Order.DoesNotExist, ValueError, TypeError):
             return Response({'error': f'Order {id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
