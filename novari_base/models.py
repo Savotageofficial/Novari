@@ -1,6 +1,14 @@
+import os
+import uuid
+
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
+
+
+def unique_image_upload_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    return f"{uuid.uuid4().hex}{ext}"
 
 
 class User(models.Model):
@@ -74,7 +82,7 @@ class Product(models.Model):
         return self.images if self.images else []
 
 class ImagesTable(models.Model):
-    mainimage = models.ImageField(upload_to='img', null=True)
+    mainimage = models.ImageField(upload_to=unique_image_upload_path, null=True)
     image = models.ForeignKey(Product , on_delete=models.CASCADE)
 
     class Meta:
