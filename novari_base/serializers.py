@@ -60,7 +60,7 @@ def product_from_request_data(data: dict, product: Product | None = None) -> Pro
         product.color = data['color']
         product.colors = [data['color']] if data['color'] else []
 
-    product.image = ''
+    product.image = []
 
     return product
 
