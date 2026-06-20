@@ -14,6 +14,7 @@ urlpatterns = [
 
     path("/admin/upload/", views.AdminImageUploadView.as_view()),
     path("/admin/orders/", views.AdminOrdersView.as_view()),
+    path("/admin/orders/<int:id>", views.ChangeOrderStatusView.as_view()),
     path("/admin/add-admin/", views.AdminAddAdminView.as_view()),
 
 ]

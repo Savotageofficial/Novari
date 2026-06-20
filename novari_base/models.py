@@ -100,6 +100,7 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     Order_Notes = models.TextField(default='')
     items = models.JSONField(default=list, blank=True)
+    status = models.TextField(default='IN_PROGRESS')
 
     class Meta:
         db_table = 'Orders'

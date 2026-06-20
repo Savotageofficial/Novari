@@ -226,6 +226,17 @@ class AdminOrdersView(APIView):
         orders = Order.objects.order_by('-created_at')
         return Response([serialize_order(order) for order in orders])
 
+class ChangeOrderStatusView(APIView):
+    def patch(self, request, id):
+        user = check_token(request)
+        if user is None:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            order = Order.objects.get(id=id)
+            order.status = request.data.get('status')
+            order.save();
+        except (Order.DoesNotExist, ValueError, TypeError):
+            return Response({'error': f'Order {id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
 class AdminAddAdminView(APIView):
     def post(self, request):
