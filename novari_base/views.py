@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from novari_base.models import AdminToken, Order, Product, User
+from novari_base.models import AdminToken, ImagesTable, Order, Product, User
 from novari_base.serializers import product_from_request_data, serialize_order, serialize_product
 
 ALLOWED_IMAGE_TYPES = {
@@ -185,6 +185,15 @@ class AdminImageUploadView(APIView):
         if user is None:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
+        product_id = request.data.get('product_id')
+        if not product_id:
+            return Response({'error': 'product_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product = Product.objects.get(id=product_id)
+        except (Product.DoesNotExist, ValueError, TypeError):
+            return Response({'error': f'Product {product_id} does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
         image_file = request.FILES.get('image')
         if not image_file:
             return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
@@ -196,10 +205,10 @@ class AdminImageUploadView(APIView):
         if image_file.size > MAX_UPLOAD_SIZE:
             return Response({'error': 'Image too large'}, status=status.HTTP_400_BAD_REQUEST)
 
-        ext = ALLOWED_IMAGE_TYPES[content_type]
-        filename = f'products/{uuid.uuid4()}{ext}'
-        saved_path = default_storage.save(filename, image_file)
-        url = request.build_absolute_uri(default_storage.url(saved_path))
+        image = ImagesTable(image=product, mainimage=image_file)
+        image.save()
+        url = request.build_absolute_uri(image.mainimage.url)
+
         return Response({'url': url}, status=status.HTTP_201_CREATED)
 
 
@@ -215,8 +224,8 @@ class AdminOrdersView(APIView):
 
 class AdminAddAdminView(APIView):
     def post(self, request):
-        auth_header = request.headers.get('Authorization', '').strip()
-        if auth_header != '12345678':
+        user = check_token(request)
+        if user is None or not user.is_admin:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
         email = request.data.get('email')

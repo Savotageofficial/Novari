@@ -52,7 +52,6 @@ class AdminToken(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(default='')
-    image = models.ImageField(upload_to='products', default='not uploaded')
     discount = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
         default=0.0,
@@ -77,6 +76,13 @@ class Product(models.Model):
         if self.image and str(self.image) != 'not uploaded':
             return [self.image.url if hasattr(self.image, 'url') else str(self.image)]
         return []
+
+class ImagesTable(models.Model):
+    mainimage = models.ImageField(upload_to='img', null=True)
+    image = models.ForeignKey(Product , on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'Images'
 
 
 class Order(models.Model):

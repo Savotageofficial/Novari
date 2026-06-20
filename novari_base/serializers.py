@@ -1,4 +1,4 @@
-from novari_base.models import Order, Product
+from novari_base.models import ImagesTable, Order, Product
 
 
 def _absolute_media_url(path: str, request=None) -> str:
@@ -8,7 +8,11 @@ def _absolute_media_url(path: str, request=None) -> str:
 
 
 def serialize_product(product: Product, request=None) -> dict:
-    images = [_absolute_media_url(img, request) for img in product.get_images_list()]
+    image_rows = ImagesTable.objects.filter(image=product).exclude(mainimage='')
+    if image_rows.exists():
+        images = [_absolute_media_url(img.mainimage.url, request) for img in image_rows]
+    else:
+        images = [_absolute_media_url(img, request) for img in product.get_images_list()]
     return {
         'id': product.id,
         'name': product.name,
