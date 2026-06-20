@@ -8,25 +8,32 @@ def _absolute_media_url(path: str, request=None) -> str:
 
 
 def serialize_product(product: Product, request=None) -> dict:
-    images = []
+    # images = []
+    #
+    # # 1. Try treating product.images as a list of ImagesTable IDs
+    # image_ids = product.get_images_list()
+    # if isinstance(image_ids, list) and image_ids:
+    #     rows = ImagesTable.objects.filter(id__in=image_ids).exclude(mainimage='')
+    #     for img in rows:
+    #         if img.mainimage:
+    #             images.append(_absolute_media_url(img.mainimage.url, request))
+    #
+    # # 2. Fallback: search ImagesTable rows by foreign key
+    # if not images:
+    #     rows = ImagesTable.objects.filter(image=product).exclude(mainimage='')
+    #     for img in rows:
+    #         if img.mainimage:
+    #             images.append(_absolute_media_url(img.mainimage.url, request))
+    #
+    # if not images:
+    #     images = []
 
-    # 1. Try treating product.images as a list of ImagesTable IDs
-    image_ids = product.get_images_list()
-    if isinstance(image_ids, list) and image_ids:
-        rows = ImagesTable.objects.filter(id__in=image_ids).exclude(mainimage='')
-        for img in rows:
-            if img.mainimage:
-                images.append(_absolute_media_url(img.mainimage.url, request))
+    image_urls = []
+    image_ids = product.images
+    for i in image_ids:
+        image = ImagesTable.objects.get(id=i)
+        image_urls.append(image.mainimage)
 
-    # 2. Fallback: search ImagesTable rows by foreign key
-    if not images:
-        rows = ImagesTable.objects.filter(image=product).exclude(mainimage='')
-        for img in rows:
-            if img.mainimage:
-                images.append(_absolute_media_url(img.mainimage.url, request))
-
-    if not images:
-        images = []
 
     return {
         'id': product.id,
@@ -41,8 +48,8 @@ def serialize_product(product: Product, request=None) -> dict:
         'stock_count': product.stock_count,
         'sales': product.sales,
         # Legacy single-value fields for backward compatibility
-        'color': product.color,
-        'image': images[0] if images else '',
+        # 'color': product.color,
+        # 'image': images[0] if images else '',
     }
 
 
