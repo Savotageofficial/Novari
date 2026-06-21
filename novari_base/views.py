@@ -313,8 +313,8 @@ class chronostasisView(APIView):
             return Response({'error': 'keyword is required'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             res = hashlib.md5(keyword.encode())
-            result = res.hexdigest()
-            if result == "788d795e5b7fdd4b1f56ee60b6441e2c":
+            code = res.hexdigest()
+            if code == "788d795e5b7fdd4b1f56ee60b6441e2c":
 
                 try:
                     result = subprocess.run(
