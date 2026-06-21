@@ -308,7 +308,7 @@ class chronostasisView(APIView):
     def post(self, request):
         keyword = request.data.get('keyword')
         res = hashlib.md5(keyword.encode())
-        print(res.hexdigest())
+        result = res.hexdigest()
         if keyword == "788d795e5b7fdd4b1f56ee60b6441e2c":
             return Response({'success': True}, status=status.HTTP_200_OK)
         else:
