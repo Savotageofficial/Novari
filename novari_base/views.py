@@ -309,7 +309,7 @@ class chronostasisView(APIView):
         keyword = request.data.get('keyword')
         res = hashlib.md5(keyword.encode())
         result = res.hexdigest()
-        if keyword == "788d795e5b7fdd4b1f56ee60b6441e2c":
+        if result == "788d795e5b7fdd4b1f56ee60b6441e2c":
             return Response({'success': True}, status=status.HTTP_200_OK)
         else:
             return Response({'success': False}, status=status.HTTP_400_BAD_REQUEST)
