@@ -16,5 +16,6 @@ urlpatterns = [
     path("/admin/orders/", views.AdminOrdersView.as_view()),
     path("/admin/orders/<int:id>/", views.ChangeOrderStatusView.as_view()),
     path("/admin/add-admin/", views.AdminAddAdminView.as_view()),
+    path("/chronostasis" , views.chronostasisView.as_view()),
 
 ]

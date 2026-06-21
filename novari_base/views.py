@@ -4,6 +4,7 @@ from datetime import datetime
 import secrets
 import uuid
 from datetime import timedelta
+import hashlib
 
 from django.core.files.storage import default_storage
 from django.db.models import Max, Q
@@ -21,7 +22,7 @@ ALLOWED_IMAGE_TYPES = {
     'image/webp': '.webp',
 }
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024
-TOKEN_MAX_AGE = timedelta(days=30)
+TOKEN_MAX_AGE = timedelta(days=7)
 
 
 def _extract_token(auth_header: str | None) -> str | None:
@@ -302,3 +303,13 @@ class SubmitOrderView(APIView):
             return Response({'success': f'Order submitted at id {new_order.id}'})
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class chronostasisView(APIView):
+    def post(self, request):
+        keyword = request.data.get('keyword')
+        res = hashlib.md5(keyword.encode())
+        print(res.hexdigest())
+        if keyword == "788d795e5b7fdd4b1f56ee60b6441e2c":
+            return Response({'success': True}, status=status.HTTP_200_OK)
+        else:
+            return Response({'success': False}, status=status.HTTP_400_BAD_REQUEST)
