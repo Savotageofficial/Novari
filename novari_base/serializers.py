@@ -53,6 +53,39 @@ def serialize_product(product: Product, request=None) -> dict:
     }
 
 
+def _resolve_image_ids(image_items, product=None):
+    """Return a list of ImagesTable IDs, converting any URL/path values back to IDs."""
+    if image_items is None:
+        return []
+    if not isinstance(image_items, list):
+        image_items = [image_items] if image_items else []
+
+    existing_by_url = {}
+    if product is not None and product.pk:
+        for img in ImagesTable.objects.filter(image=product).exclude(mainimage=''):
+            if img.mainimage:
+                existing_by_url[img.mainimage.url] = img.id
+                existing_by_url[img.mainimage.name] = img.id
+
+    resolved = []
+    for item in image_items:
+        if isinstance(item, int) or (isinstance(item, str) and item.isdigit()):
+            resolved.append(int(item))
+            continue
+
+        if isinstance(item, str):
+            matched_id = existing_by_url.get(item)
+            if matched_id is None:
+                for path, img_id in existing_by_url.items():
+                    if item.endswith(path) or path.endswith(item):
+                        matched_id = img_id
+                        break
+            if matched_id is not None:
+                resolved.append(matched_id)
+
+    return resolved
+
+
 def product_from_request_data(data: dict, product: Product | None = None) -> Product:
     if product is None:
         product = Product()
@@ -82,14 +115,8 @@ def product_from_request_data(data: dict, product: Product | None = None) -> Pro
         product.color = data['color']
         product.colors = [data['color']] if data['color'] else []
 
-    # Images are managed through ImagesTable, not this endpoint
-    if 'images' in data and isinstance(data['images'], list):
-        product.images = data['images']
-        if data['images']:
-            product.images = data['images'][0]
-    elif 'images' in data:
-        product.images = data['images']
-        product.images = [data['images']] if data['images'] else []
+    if 'images' in data:
+        product.images = _resolve_image_ids(data['images'], product)
 
     return product
 
