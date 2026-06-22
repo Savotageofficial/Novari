@@ -13,6 +13,7 @@ djangorestframework = "*"
 djangorestframework-stubs = "*"
 gunicorn = "*"
 django-cors-headers = "*"
+python-decouple = "*"
 
 [dev-packages]
 
